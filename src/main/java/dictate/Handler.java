@@ -40,7 +40,11 @@ public class Handler implements RequestHandler<Map<String, String>, String> {
         key.put("UserId", AttributeValue.builder().s(userName).build());
         key.put("NoteId", AttributeValue.builder().n(noteId).build());
         //TODO 1 BEGIN
-        
+        var request = GetItemRequest.builder()
+                .tableName(tableName)
+                .key(key)
+                .build();
+
         //TODO 1 END
         var queryResponse = dbAsyncClient.getItem(request).join();
         return queryResponse.item().get("Note").s();
@@ -90,7 +94,13 @@ public class Handler implements RequestHandler<Map<String, String>, String> {
             // Calls the Polly synthesize_speech API to convert text to speech
             // Stores the resulting audio in an MP3 file in /tmp
             //TODO 2 BEGIN
-            
+            pollyclient.synthesizeSpeech(SynthesizeSpeechRequest.builder()
+                    .outputFormat("mp3")
+                    .text(noteText)
+                    .voiceId(voice)
+                    .build(), destfile)
+                    .join();
+
             //TODO 2 END
 
             var key = userId + "/" + noteId + ".mp3";
@@ -106,7 +116,18 @@ public class Handler implements RequestHandler<Map<String, String>, String> {
 
             // Creates a pre-signed URL for the MP3 file
             // TODO 3 BEGIN
-            
+            var presigner = S3Presigner.builder().build();
+            var url = presigner.presignGetObject(GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(5))
+                    .getObjectRequest(GetObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .build())
+                    .build())
+                    .url();
+
+            response = url.toString();
+
             // TODO 3 END
             logger.info("generated url {}", response);
 
